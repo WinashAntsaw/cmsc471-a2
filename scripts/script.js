@@ -30,12 +30,9 @@ const zoom = d3.zoom()
     //.translateExtent([[0, 0], [width, height]])
     .on("zoom", zoomed);
 
-let curr_transform = {k: 1, x: 0, y: 0};
-
 
 function zoomed(event) {
     const {transform} = event;
-    curr_transform = transform;
     g.attr("transform", transform);
     g.attr("stroke-width", 1 / transform.k);
 }
@@ -117,7 +114,11 @@ async function init() {
         console.log("Old length: " + weather_data.length);
         console.log("New length: " + station_data.length);
 
-        
+        num_observations = station_data.map(d => d.weather.length)
+
+        console.log('Each station has an average of: ' + num_observations.reduce((accum, curr) => accum + curr, 0) / num_observations.length + ' observations');
+        console.log('The highest number of observations was: ' + num_observations.reduce((accum, curr) => (accum < curr)? curr : accum));
+        console.log(num_observations);
         // Create visualization
         createVis(us, station_data);
 
@@ -181,8 +182,10 @@ function updateVis(weather_data) {
                     .attr('r', 0)
                     .attr('cx', d => d.x)
                     .attr('cy', d => d.y)
-                    .attr('r', 2)
+                    .attr('r', 4)
                     .attr('fill', 'red')
+                    .style('stroke', 'black')
+                    .style('stroke-width', '1px')
                     .on('mouseover', function (event, d) {
                         d3.select('#tooltip')
                             .style('display', 'block')
@@ -194,17 +197,17 @@ function updateVis(weather_data) {
                             .style("top", (event.pageY - 28) + "px");
                         
                         d3.select(this)
-                        .attr('r', 5)
+                        .attr('r', 7)
                         .style('stroke', 'black')
-                        .style('stroke-width', '4px')
+                        .style('stroke-width', '2px')
                     })
                     .on('mouseout', function (event, d) {
                         d3.select('#tooltip')
                         .style('display', 'none');
 
                         d3.select(this)
-                        .attr('r', 2)
-                        .style('stroke-width', '0px');
+                        .attr('r', 4)
+                        .style('stroke-width', '1px');
                     });
             },
             function (update) {
