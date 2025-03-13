@@ -3,9 +3,14 @@ const test_coords = [{name: 'Newark', latitude: 39.6837, longitude: -75.7497}, {
 // Functions and Variables for Data Processing
 const valid_states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
 
-const data_options = [];
+const data_options = [
+    {name: 'Temperature', fullname: 'Average Temperature Across Observations (F)'},
+    {name: 'Snowfall', fullname: 'Snowfall Across Observations (inches)'},
+    {name: 'Precipitation', fullname: 'Precipitation (inches)'},
+    {name: 'Windspeed', fullname: 'Fastest 5-Second Wind Speed Across Daily Observations (miles/hour)'}
+    ];
 
-let num_observations= [], color_var, min_observations = 25;
+let num_observations= [], data_var = data_options[0], min_observations = 25;
 
 
 function get_data(datapoint) {
@@ -29,17 +34,16 @@ const g = svg.append("g");
 
 // Initiialize dynamic behavior
 const transition_time = 1000;
-
-const max_zoom = 8;
+let allow_zoom = true;
+const  max_zoom = 8;
 const min_zoom = 1;
 
 const zoom = d3.zoom()
     .scaleExtent([min_zoom, max_zoom])
-    //.translateExtent([[0, 0], [width, height]])
     .on("zoom", zoomed);
 
 
-let allow_zoom = true;
+
 
 function zoomed(event) {
     const {transform} = event;
@@ -53,19 +57,11 @@ function zoomed(event) {
 
 svg.call(zoom);
 
-
-svg.on('click', function (event, d) {
-    console.log('WAHOO')
-    
-    
-    
-    
-
+svg.on('click', function (event, d) {    
     svg.transition(transition_time).call(zoom.scaleTo, 1).transition(transition_time).call(zoom.translateTo, width / 2, height / 2);
     g.attr('transform', `translate(${0},${0}) scale(1)`);
 
     allow_zoom = true;
-    
 });
 
 
@@ -294,9 +290,11 @@ function updateVis(weather_data) {
                             .transition()
                             .call(zoom.translateTo, d.x, d.y)*/
                         
-                        // To block normal zooming actions while the station is selected, uncomment the line below
-                        //allow_zoom = false;
+                        // To block normal zooming actions while the station is selected, the line below should be uncommented
+                        allow_zoom = false;
                         event.stopPropagation();
+                        // Create line chart using "date" for the x-axis and "TAVG" for the y-axis
+                        createLineChart(d.weather, 'date', 'TAVG');
                     });
             },
             function (update) {
