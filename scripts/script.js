@@ -1,18 +1,17 @@
-const test_coords = [{name: 'Newark', latitude: 39.6837, longitude: -75.7497}, {name: 'Olympia', latitude: 46.9733, longitude: -122.9033}, {name: 'ANNETTE ISLAND', latitude: 55.0389, longitude:-131.5786}, {name: 'Juneau', latitude: 58.3005, longitude:-134.4021}]       // Coordinates for some test coordinates For testing purposes, compare visually
+// script.js
 
-// Functions and Variables for Data Processing
-const valid_states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
+// Make sure your HTML file includes:
+//   <div id="vis"></div>
+//   <div id="line-chart"></div>
+//   <div id="tooltip" style="position:absolute; background:#fff; padding:5px; border:1px solid #ccc; display:none;"></div>
 
-const data_options = [];
+// Valid US state codes
+const valid_states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
 
-let num_observations= [], color_var, min_observations = 25;
-
-
+// Dummy function to process a data point if needed
 function get_data(datapoint) {
     return "Not implemented yet";
 }
-
-// The CSV takes the following format: station,state,latitude,longitude,elevation,date,TMIN,TMAX,TAVG,AWND,WDF5,WSF5,SNOW,SNWD,PRCP
 
 // SVG canvas variables
 const width = 975;
@@ -26,77 +25,45 @@ const svg = d3.select('#vis').append("svg")
 
 const g = svg.append("g");
 
-
-// Initiialize dynamic behavior
+// Initialize zoom behavior
 const transition_time = 1000;
-
-const max_zoom = 8;
-const min_zoom = 1;
-
 const zoom = d3.zoom()
-    .scaleExtent([min_zoom, max_zoom])
-    //.translateExtent([[0, 0], [width, height]])
+    .scaleExtent([1, 8])
     .on("zoom", zoomed);
 
-
-let allow_zoom = true;
-
 function zoomed(event) {
-    const {transform} = event;
-
-    if (allow_zoom) {
-        g.attr("transform", transform);
-        g.attr("stroke-width", 1 / transform.k);
-    }
-    
+    const { transform } = event;
+    g.attr("transform", transform);
+    g.attr("stroke-width", 1 / transform.k);
 }
 
 svg.call(zoom);
 
-
-svg.on('click', function (event, d) {
-    console.log('WAHOO')
-    
-    
-    
-    
-
-    svg.transition(transition_time).call(zoom.scaleTo, 1).transition(transition_time).call(zoom.translateTo, width / 2, height / 2);
-    g.attr('transform', `translate(${0},${0}) scale(1)`);
-
-    allow_zoom = true;
-    
-});
-
-
-// Initialize path for map drawing
+// Define geographic path generator and projection
 const path = d3.geoPath();
-
 const projection = d3.geoAlbersUsa()
     .scale(1300)
     .translate([487.5, 305]);
 
+// Main initialization function
 async function init() {
     try {
-        // Load geographic data
+        // Load geographic data (states boundaries)
         let us = await d3.json("./data/states-albers-10m.json");
+        // Load weather data CSV
         let weather_data = await d3.csv("./data/weather.csv");
         
-        // Verify data loading
-        //console.log('map data:', us.objects.states);
-        //console.log('weather data:', weather_data);
+        // Filter weather data to include only valid US states
+        weather_data = weather_data.filter(d => valid_states.includes(d.state));
 
-        // Lets clean up the weather data
-        // 1: due to map limitations, remove all data not within the 50 states of the US
-        weather_data = weather_data.filter(d => !(valid_states.find(x => x == d.state) === undefined));
+        // Sort weather data by station
+        weather_data = weather_data.sort((a, b) => a.station < b.station ? -1 : 1);
 
-        // 2: to avoid duplicate points, organize the data by station, instead of individual report
-        weather_data = weather_data.sort((a, b) => a.station < b.station);
+        let station_data = [];
 
-        let station_data = []
-
+        // Reduce weather_data by station
         function reducer(accum, curr) {
-            currWeather = {
+            let currWeather = {
                 date: curr.date,
                 TMIN: curr.TMIN,
                 TMAX: curr.TMAX,
@@ -106,89 +73,51 @@ async function init() {
                 SNOW: curr.SNOW,
                 SNWD: curr.SNWD,
                 PRCP: curr.PRCP
-            }
+            };
 
-            if (accum.station == curr.station) {
+            if (accum.station === curr.station) {
                 accum.weather.push(currWeather);
                 return accum;
             } else {
                 station_data.push(accum);
-                let [x, y] = projection([curr.longitude, curr.latitude]);
-
-                newAccum = {
+                let newAccum = {
                     station: curr.station,
                     latitude: curr.latitude,
                     longitude: curr.longitude,
-                    x: x,
-                    y: y,
                     elevation: curr.elevation,
                     state: curr.state,
                     weather: [currWeather]
-                }
-
-                return newAccum
+                };
+                return newAccum;
             }
         }        
-
-        let [x, y] = projection([weather_data[0].longitude, weather_data[0].latitude]);
 
         let initial = {
             station: weather_data[0].station,
             latitude: weather_data[0].latitude,
             longitude: weather_data[0].longitude,
-            x: x,
-            y: y,
             elevation: weather_data[0].elevation,
             state: weather_data[0].state,
             weather: []
         };
 
-        final_station = weather_data.reduce(reducer, initial);
+        let final_station = weather_data.reduce(reducer, initial);
         station_data.push(final_station);
 
         console.log("Old length: " + weather_data.length);
         console.log("New length: " + station_data.length);
 
-        num_observations = station_data.map(d => d.weather.length)
-
+        let num_observations = station_data.map(d => d.weather.length);
         console.log('Each station has an average of: ' + num_observations.reduce((accum, curr) => accum + curr, 0) / num_observations.length + ' observations');
-        console.log('The highest number of observations was: ' + num_observations.reduce((accum, curr) => (accum < curr)? curr : accum));
+        console.log('The highest number of observations was: ' + Math.max(...num_observations));
         console.log(num_observations);
-        // Create visualization
+
+        // Create visualization with map and weather data
         createVis(us, station_data);
-        setupSelector(station_data);
 
     } catch (error) {
         console.error('Error loading data:', error);
     }
-}
-
-
-function setupSelector(station_data){
-    d3.select("#value").text(min_observations);
-
-    let slider = d3
-        .sliderHorizontal()
-        .min(d3.min(num_observations))
-        .max(d3.max(num_observations))
-        .step(1)
-        .width(width)
-        .displayValue(false)
-        .default(min_observations)
-        .on('onchange', (val) => {
-            d3.select('#value').text(val);
-            min_observations = +val;
-            updateVis(station_data);
-        });
-
-    d3.select('#slider')
-        .append('svg')
-        .attr('width', width)
-        .attr('height', 100)
-        .append('g')
-        .attr('transform', 'translate(30,30)')
-        .call(slider);
-    
 }
 
 // Function to create the visualization (map and points)
@@ -214,22 +143,20 @@ function createVis(us, data) {
     updateVis(data);
 }
 
-
-
-function updateVis(weather_data) {
-    function coord_to_plot(datapoint) {
-        //let [x, y] = projection([datapoint.longitude, datapoint.latitude]);
-
-        return {
-            station: datapoint.station,
-            state: datapoint.state,
-            long: datapoint.longitude,
-            lat: datapoint.latitude,
-            x: datapoint.x,
-            y: datapoint.y,
-            data: get_data(datapoint)
-        }
-    }
+// Helper function to convert data coordinates to screen coordinates
+function coord_to_plot(datapoint) {
+    let [x, y] = projection([datapoint.longitude, datapoint.latitude]);
+    return {
+        station: datapoint.station,
+        state: datapoint.state,
+        long: datapoint.longitude,
+        lat: datapoint.latitude,
+        x: x,
+        y: y,
+        weather: datapoint.weather,  // include station weather data
+        data: get_data(datapoint)
+    };
+}
 
 // Function to update the visualization with station points
 function updateVis(weather_data) {
@@ -259,52 +186,104 @@ function updateVis(weather_data) {
                             .style("top", (event.pageY - 28) + "px");
                         
                         d3.select(this)
-                            .attr('r', 7)
-                            .style('stroke', 'black')
-                            .style('stroke-width', '2px')
-                            .style('cursor', 'pointer');
+                          .attr('r', 7)
+                          .style('stroke', 'black')
+                          .style('stroke-width', '2px');
                     })
                     .on('mouseout', function (event, d) {
                         d3.select('#tooltip')
                             .style('display', 'none');
 
                         d3.select(this)
-                        .attr('r', 4)
-                        .style('stroke-width', '1px')
-                        .style('cursor', 'default');
+                          .attr('r', 4)
+                          .style('stroke-width', '1px');
                     })
-                    .on('click', function (event, d) {
-                        let zoom_factor = max_zoom;
-
-                        g.transition(transition_time)
-                            .attr('transform', `scale(${zoom_factor}) translate(${-(d.x - (width / (zoom_factor * 2)))}, ${-(d.y - (height / (zoom_factor * 2)))})`)
-
-                        /*
-                        d3.select('svg')
-                            .transition(transition_time)
-                            .call(zoom.scaleTo, zoom_factor)
-                            .transition()
-                            .call(zoom.translateTo, d.x, d.y)*/
-                        
-                        // To block normal zooming actions while the station is selected, uncomment the line below
-                        //allow_zoom = false;
-                        event.stopPropagation();
+                    // Click event to generate line chart
+                    .on('click', function(event, d) {
+                        // Create line chart using "date" for the x-axis and "TAVG" for the y-axis
+                        createLineChart(d.weather, 'date', 'TAVG');
                     });
             },
-            function (update) {
-                return update
-                    .attr('cx', d => d.x)
-                    .attr('cy', d => d.y)
-                    .attr('r', 4)
-            },
-            function (exit) {
-                exit
-                    .remove();
-            }
-        )
+            function (update) { return update; },
+            function (exit) { exit.remove(); }
+        );
 }
 
+// Function to create the line chart below the map
+function createLineChart(weatherData, xVar, yVar) {
+    // Clear any previous chart
+    d3.select("#line-chart").html("");
 
-window.addEventListener('load', init)
+    // Define margins and dimensions for the chart
+    const margin = {top: 20, right: 30, bottom: 50, left: 50},
+          chartWidth = 600 - margin.left - margin.right,
+          chartHeight = 300 - margin.top - margin.bottom;
 
+    // Append an SVG element to the #line-chart container
+    const svgChart = d3.select("#line-chart")
+        .append("svg")
+        .attr("width", chartWidth + margin.left + margin.right)
+        .attr("height", chartHeight + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
 
+    // Parse date strings into Date objects (adjust the format string as needed)
+    const parseDate = d3.timeParse("%Y-%m-%d");
+    weatherData.forEach(d => {
+        d.parsedDate = parseDate(d.date);
+        d.yValue = +d[yVar]; // Convert the y variable to a number
+    });
+
+    // Define scales for x (time) and y (linear)
+    const xScale = d3.scaleTime()
+        .domain(d3.extent(weatherData, d => d.parsedDate))
+        .range([0, chartWidth]);
+
+    const yScale = d3.scaleLinear()
+        .domain(d3.extent(weatherData, d => d.yValue))
+        .nice()
+        .range([chartHeight, 0]);
+
+    // Create axes
+    const xAxis = d3.axisBottom(xScale);
+    const yAxis = d3.axisLeft(yScale);
+
+    // Add the x-axis to the chart
+    svgChart.append("g")
+        .attr("transform", `translate(0, ${chartHeight})`)
+        .call(xAxis);
+
+    // Add the y-axis to the chart
+    svgChart.append("g")
+        .call(yAxis);
+
+    // Create a line generator function
+    const line = d3.line()
+        .x(d => xScale(d.parsedDate))
+        .y(d => yScale(d.yValue));
+
+    // Append the line path to the SVG
+    svgChart.append("path")
+        .datum(weatherData)
+        .attr("fill", "none")
+        .attr("stroke", "steelblue")
+        .attr("stroke-width", 2)
+        .attr("d", line);
+
+    // Optionally, add axis labels
+    svgChart.append("text")
+        .attr("transform", `translate(${chartWidth/2}, ${chartHeight + margin.bottom - 5})`)
+        .style("text-anchor", "middle")
+        .text("Date");
+
+    svgChart.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 0 - margin.left)
+        .attr("x", 0 - (chartHeight / 2))
+        .attr("dy", "1em")
+        .style("text-anchor", "middle")
+        .text(yVar);
+}
+
+// Initialize the visualization when the window loads
+window.addEventListener('load', init);
