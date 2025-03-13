@@ -3,6 +3,11 @@ const test_coords = [{name: 'Newark', latitude: 39.6837, longitude: -75.7497}, {
 // Functions and Variables for Data Processing
 const valid_states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
 
+const data_options = [];
+
+let num_observations= [], color_var, min_observations = 25;
+
+
 function get_data(datapoint) {
     return "Not implemented yet";
 }
@@ -25,19 +30,31 @@ const g = svg.append("g");
 // Initiialize dynamic behavior
 const transition_time = 1000;
 
+const max_zoom = 8;
+const min_zoom = 1;
+
 const zoom = d3.zoom()
-    .scaleExtent([1, 8])
+    .scaleExtent([min_zoom, max_zoom])
     //.translateExtent([[0, 0], [width, height]])
     .on("zoom", zoomed);
 
 
+let allow_zoom = true;
+
 function zoomed(event) {
     const {transform} = event;
-    g.attr("transform", transform);
-    g.attr("stroke-width", 1 / transform.k);
+
+    if (allow_zoom) {
+        g.attr("transform", transform);
+        g.attr("stroke-width", 1 / transform.k);
+    }
+    
 }
 
 svg.call(zoom);
+
+let point_selected = false;
+
 
 // Initialize path for map drawing
 const path = d3.geoPath();
@@ -85,11 +102,14 @@ async function init() {
                 return accum;
             } else {
                 station_data.push(accum);
+                let [x, y] = projection([curr.longitude, curr.latitude]);
 
                 newAccum = {
                     station: curr.station,
                     latitude: curr.latitude,
                     longitude: curr.longitude,
+                    x: x,
+                    y: y,
                     elevation: curr.elevation,
                     state: curr.state,
                     weather: [currWeather]
@@ -99,10 +119,14 @@ async function init() {
             }
         }        
 
+        let [x, y] = projection([weather_data[0].longitude, weather_data[0].latitude]);
+
         let initial = {
             station: weather_data[0].station,
             latitude: weather_data[0].latitude,
             longitude: weather_data[0].longitude,
+            x: x,
+            y: y,
             elevation: weather_data[0].elevation,
             state: weather_data[0].state,
             weather: []
@@ -121,10 +145,39 @@ async function init() {
         console.log(num_observations);
         // Create visualization
         createVis(us, station_data);
+        setupSelector(station_data);
 
     } catch (error) {
         console.error('Error loading data:', error);
     }
+}
+
+
+function setupSelector(station_data){
+    d3.select("#value").text(min_observations);
+
+    let slider = d3
+        .sliderHorizontal()
+        .min(d3.min(num_observations))
+        .max(d3.max(num_observations))
+        .step(1)
+        .width(width)
+        .displayValue(false)
+        .default(min_observations)
+        .on('onchange', (val) => {
+            d3.select('#value').text(val);
+            min_observations = +val;
+            updateVis(station_data);
+        });
+
+    d3.select('#slider')
+        .append('svg')
+        .attr('width', width)
+        .attr('height', 100)
+        .append('g')
+        .attr('transform', 'translate(30,30)')
+        .call(slider);
+    
 }
 
 
@@ -156,20 +209,20 @@ function createVis(us, data) {
 
 function updateVis(weather_data) {
     function coord_to_plot(datapoint) {
-        let [x, y] = projection([datapoint.longitude, datapoint.latitude]);
+        //let [x, y] = projection([datapoint.longitude, datapoint.latitude]);
 
         return {
             station: datapoint.station,
             state: datapoint.state,
             long: datapoint.longitude,
             lat: datapoint.latitude,
-            x: x,
-            y: y,
+            x: datapoint.x,
+            y: datapoint.y,
             data: get_data(datapoint)
         }
     }
 
-    p_coords = weather_data.map(d => coord_to_plot(d))
+    p_coords = weather_data.filter(d => d.weather.length >= min_observations).map(d => coord_to_plot(d));
 
 
     g.selectAll('.points')
@@ -197,9 +250,10 @@ function updateVis(weather_data) {
                             .style("top", (event.pageY - 28) + "px");
                         
                         d3.select(this)
-                        .attr('r', 7)
-                        .style('stroke', 'black')
-                        .style('stroke-width', '2px')
+                            .attr('r', 7)
+                            .style('stroke', 'black')
+                            .style('stroke-width', '2px')
+                            .style('cursor', 'pointer');
                     })
                     .on('mouseout', function (event, d) {
                         d3.select('#tooltip')
@@ -207,11 +261,32 @@ function updateVis(weather_data) {
 
                         d3.select(this)
                         .attr('r', 4)
-                        .style('stroke-width', '1px');
+                        .style('stroke-width', '1px')
+                        .style('cursor', 'default');
+                    })
+                    .on('click', function (event, d) {
+                        let zoom_factor = max_zoom;
+
+
+                        d3.select('svg')
+                            .transition()
+                            .call(zoom.translateTo, d.x, d.y)
+                            .call(zoom.scaleTo, zoom_factor)
+                            .on('click', function (event, d) {
+                                console.log('clicked canvas while zoomed');
+                                d3.select(this)
+                                    .transition()
+                                    .call(zoom.translateTo, width / 2, height / 2)
+                                    .call(zoom.scaleTo, 1);
+                            });
+                            
                     });
             },
             function (update) {
                 return update
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y)
+                    .attr('r', 4)
             },
             function (exit) {
                 exit
