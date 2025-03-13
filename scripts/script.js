@@ -31,8 +31,12 @@ const g = svg.append("g");
 
 // Initialize zoom behavior
 const transition_time = 1000;
+let allow_zoom = true;
+const  max_zoom = 8;
+const min_zoom = 1;
+
 const zoom = d3.zoom()
-    .scaleExtent([1, 8])
+    .scaleExtent([min_zoom, max_zoom])
     .on("zoom", zoomed);
 
 function zoomed(event) {
