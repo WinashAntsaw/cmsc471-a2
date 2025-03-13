@@ -27,8 +27,12 @@ const zoom = d3.zoom()
     //.translateExtent([[0, 0], [width, height]])
     .on("zoom", zoomed);
 
+let curr_transform = {k: 1, x: 0, y: 0};
+
+
 function zoomed(event) {
     const {transform} = event;
+    curr_transform = transform;
     g.attr("transform", transform);
     g.attr("stroke-width", 1 / transform.k);
 }
@@ -109,8 +113,6 @@ async function init() {
         console.log("Old length: " + weather_data.length);
         console.log("New length: " + station_data.length);
 
-        //trash old weather data, since station data is just as informative
-        weather_data = [];
         
         // Create visualization
         createVis(us, station_data);
@@ -151,7 +153,7 @@ function updateVis(weather_data) {
     p_coords = weather_data.map(d => projection([d.longitude, d.latitude]))
 
 
-    svg.selectAll('.points')
+    g.selectAll('.points')
         .data(p_coords)
         .join(
             function (enter) {
@@ -166,7 +168,8 @@ function updateVis(weather_data) {
                     .attr('fill', 'red');
             },
             function (update) {
-                return update;
+                return update
+                    .attr('cx', d => d[0])
             },
             function (exit) {
                 exit
