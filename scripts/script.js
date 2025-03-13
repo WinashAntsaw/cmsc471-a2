@@ -3,9 +3,14 @@ const test_coords = [{name: 'Newark', latitude: 39.6837, longitude: -75.7497}, {
 // Functions and Variables for Data Processing
 const valid_states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
 
-const data_options = [];
+const data_options = [
+    {name: 'Temperature', fullname: 'Average Temperature Across Observations (F)'},
+    {name: 'Snowfall', fullname: 'Snowfall Across Observations (inches)'},
+    {name: 'Precipitation', fullname: 'Precipitation (inches)'},
+    {name: 'Windspeed', fullname: 'Fastest 5-Second Wind Speed Across Daily Observations (miles/hour)'}
+    ];
 
-let num_observations= [], color_var, min_observations = 25;
+let num_observations= [], data_var = data_options[0], min_observations = 25;
 
 
 function get_data(datapoint) {
@@ -53,19 +58,11 @@ function zoomed(event) {
 
 svg.call(zoom);
 
-
-svg.on('click', function (event, d) {
-    console.log('WAHOO')
-    
-    
-    
-    
-
+svg.on('click', function (event, d) {    
     svg.transition(transition_time).call(zoom.scaleTo, 1).transition(transition_time).call(zoom.translateTo, width / 2, height / 2);
     g.attr('transform', `translate(${0},${0}) scale(1)`);
 
     allow_zoom = true;
-    
 });
 
 
@@ -77,7 +74,7 @@ const projection = d3.geoAlbersUsa()
     .translate([487.5, 305]);
 
 
-
+// Begin Page Creation
 async function init() {
     try {
         // Load geographic data
@@ -166,6 +163,7 @@ async function init() {
 }
 
 
+// Create User Interaction Tools
 function setupSelector(station_data){
     d3.select("#value").text(min_observations);
 
@@ -190,6 +188,18 @@ function setupSelector(station_data){
         .append('g')
         .attr('transform', 'translate(30,30)')
         .call(slider);
+
+    d3.select('#dataVar').selectAll('myOptions')
+        .data(data_options)
+        .enter()
+        .append('option')
+        .text(d => d.name)
+        .attr('value', d => d.name)
+        .on('change', function (event) {
+            
+        })
+    
+    
     
 }
 
@@ -290,8 +300,8 @@ function updateVis(weather_data) {
                             .transition()
                             .call(zoom.translateTo, d.x, d.y)*/
                         
-                        // To block normal zooming actions while the station is selected, uncomment the line below
-                        //allow_zoom = false;
+                        // To block normal zooming actions while the station is selected, the line below should be uncommented
+                        allow_zoom = false;
                         event.stopPropagation();
                     });
             },
