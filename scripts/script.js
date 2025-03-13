@@ -46,8 +46,6 @@ const projection = d3.geoAlbersUsa()
     .scale(1300)
     .translate([487.5, 305]);
 
-
-
 async function init() {
     try {
         // Load geographic data
@@ -127,12 +125,11 @@ async function init() {
     }
 }
 
-
+// Function to create the visualization (map and points)
 function createVis(us, data) {    
-
+    // Draw states on the map
     const states = g.append("g")
         .attr("fill", "#ddd")
-        //.attr("cursor", "pointer")
         .selectAll("path")
         .data(topojson.feature(us, us.objects.states).features)
         .join("path")
@@ -147,30 +144,28 @@ function createVis(us, data) {
         .attr("stroke-linejoin", "round")
         .attr("d", path(topojson.mesh(us, us.objects.states, (a, b) => a !== b)));
     
-    
-    
+    // Update visualization with weather station points
     updateVis(data);
 }
 
+// Helper function to convert data coordinates to screen coordinates
+function coord_to_plot(datapoint) {
+    let [x, y] = projection([datapoint.longitude, datapoint.latitude]);
+    return {
+        station: datapoint.station,
+        state: datapoint.state,
+        long: datapoint.longitude,
+        lat: datapoint.latitude,
+        x: x,
+        y: y,
+        weather: datapoint.weather,
+        data: get_data(datapoint)
+    };
+}
 
-
+// Function to update the visualization with station points
 function updateVis(weather_data) {
-    function coord_to_plot(datapoint) {
-        let [x, y] = projection([datapoint.longitude, datapoint.latitude]);
-
-        return {
-            station: datapoint.station,
-            state: datapoint.state,
-            long: datapoint.longitude,
-            lat: datapoint.latitude,
-            x: x,
-            y: y,
-            data: get_data(datapoint)
-        }
-    }
-
-    p_coords = weather_data.map(d => coord_to_plot(d))
-
+    const p_coords = weather_data.map(d => coord_to_plot(d));
 
     g.selectAll('.points')
         .data(p_coords)
@@ -190,37 +185,99 @@ function updateVis(weather_data) {
                         d3.select('#tooltip')
                             .style('display', 'block')
                             .html(`<strong>${d.station}</strong><br/>
-                                    ${Math.abs(d.lat)}&deg${(d.lat > 0)? 'N' : 'S'}, ${Math.abs(d.long)}&deg${(d.long > 0)? 'E':'W'}<br/>
-                                    State: ${d.state}<br/>
-                                    `)
+                                   ${Math.abs(d.lat)}&deg${(d.lat > 0)? 'N' : 'S'}, ${Math.abs(d.long)}&deg${(d.long > 0)? 'E':'W'}<br/>
+                                   State: ${d.state}<br/>`)
                             .style("left", (event.pageX + 20) + "px")
                             .style("top", (event.pageY - 28) + "px");
                         
                         d3.select(this)
-                        .attr('r', 7)
-                        .style('stroke', 'black')
-                        .style('stroke-width', '2px')
+                          .attr('r', 7)
+                          .style('stroke', 'black')
+                          .style('stroke-width', '2px');
                     })
                     .on('mouseout', function (event, d) {
                         d3.select('#tooltip')
-                        .style('display', 'none');
+                            .style('display', 'none');
 
                         d3.select(this)
-                        .attr('r', 4)
-                        .style('stroke-width', '1px');
+                          .attr('r', 4)
+                          .style('stroke-width', '1px');
+                    })
+                    // Click event to generate scatter plot (points) chart
+                    .on('click', function(event, d) {
+                        //Change this so that PRCP can be replaced with any value the user chooses from the dropdown
+                        createLineChart(d.weather, 'date', 'PRCP');
                     });
             },
-            function (update) {
-                return update
-            },
-            function (exit) {
-                exit
-                    .remove();
-            }
-        )
+            function (update) { return update; },
+            function (exit) { exit.remove(); }
+        );
 }
 
+// Function to create a scatter plot (points) below the map
+function createLineChart(weatherData, xVar, yVar) {
+    // Clear any previous chart
+    d3.select("#line-chart").html("");
 
-window.addEventListener('load', init)
+    const margin = {top: 20, right: 30, bottom: 50, left: 50},
+          chartWidth = 600 - margin.left - margin.right,
+          chartHeight = 300 - margin.top - margin.bottom;
 
+    const svgChart = d3.select("#line-chart")
+        .append("svg")
+        .attr("width", chartWidth + margin.left + margin.right)
+        .attr("height", chartHeight + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
 
+    const parseDate = d3.timeParse("%Y%m%d");
+    weatherData.forEach(d => {
+        d.parsedDate = parseDate(d.date);
+        d.yValue = +d[yVar]; // convert the y variable to a number
+    });
+
+    const xScale = d3.scaleTime()
+        .domain(d3.extent(weatherData, d => d.parsedDate))
+        .range([0, chartWidth]);
+
+    const yScale = d3.scaleLinear()
+        .domain(d3.extent(weatherData, d => d.yValue))
+        .nice()
+        .range([chartHeight, 0]);
+
+    const xAxis = d3.axisBottom(xScale);
+    const yAxis = d3.axisLeft(yScale);
+
+    svgChart.append("g")
+        .attr("transform", `translate(0, ${chartHeight})`)
+        .call(xAxis);
+
+    svgChart.append("g")
+        .call(yAxis);
+
+    // Plot each weather observation as a point
+    svgChart.selectAll("circle")
+        .data(weatherData)
+        .enter()
+        .append("circle")
+        .attr("cx", d => xScale(d.parsedDate))
+        .attr("cy", d => yScale(d.yValue))
+        .attr("r", 3)
+        .attr("fill", "steelblue");
+
+    svgChart.append("text")
+        .attr("transform", `translate(${chartWidth/2}, ${chartHeight + margin.bottom - 5})`)
+        .style("text-anchor", "middle")
+        .text("Date");
+
+    svgChart.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 0 - margin.left)
+        .attr("x", 0 - (chartHeight / 2))
+        .attr("dy", "1em")
+        .style("text-anchor", "middle")
+        .text(yVar);
+}
+
+// Initialize the visualization when the window loads
+window.addEventListener('load', init);
