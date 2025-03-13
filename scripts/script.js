@@ -53,7 +53,20 @@ function zoomed(event) {
 
 svg.call(zoom);
 
-let point_selected = false;
+
+svg.on('click', function (event, d) {
+    console.log('WAHOO')
+    
+    
+    
+    
+
+    svg.transition(transition_time).call(zoom.scaleTo, 1).transition(transition_time).call(zoom.translateTo, width / 2, height / 2);
+    g.attr('transform', `translate(${0},${0}) scale(1)`);
+
+    allow_zoom = true;
+    
+});
 
 
 // Initialize path for map drawing
@@ -267,19 +280,19 @@ function updateVis(weather_data) {
                     .on('click', function (event, d) {
                         let zoom_factor = max_zoom;
 
+                        g.transition(transition_time)
+                            .attr('transform', `scale(${zoom_factor}) translate(${-(d.x - (width / (zoom_factor * 2)))}, ${-(d.y - (height / (zoom_factor * 2)))})`)
 
+                        /*
                         d3.select('svg')
-                            .transition()
-                            .call(zoom.translateTo, d.x, d.y)
+                            .transition(transition_time)
                             .call(zoom.scaleTo, zoom_factor)
-                            .on('click', function (event, d) {
-                                console.log('clicked canvas while zoomed');
-                                d3.select(this)
-                                    .transition()
-                                    .call(zoom.translateTo, width / 2, height / 2)
-                                    .call(zoom.scaleTo, 1);
-                            });
-                            
+                            .transition()
+                            .call(zoom.translateTo, d.x, d.y)*/
+                        
+                        // To block normal zooming actions while the station is selected, uncomment the line below
+                        //allow_zoom = false;
+                        event.stopPropagation();
                     });
             },
             function (update) {
