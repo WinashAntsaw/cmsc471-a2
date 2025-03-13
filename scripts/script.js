@@ -1,8 +1,11 @@
 const test_coords = [{name: 'Newark', latitude: 39.6837, longitude: -75.7497}, {name: 'Olympia', latitude: 46.9733, longitude: -122.9033}, {name: 'ANNETTE ISLAND', latitude: 55.0389, longitude:-131.5786}, {name: 'Juneau', latitude: 58.3005, longitude:-134.4021}]       // Coordinates for some test coordinates For testing purposes, compare visually
 
-// Data variables
+// Functions and Variables for Data Processing
 const valid_states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
 
+function get_data(datapoint) {
+    return "Not implemented yet";
+}
 
 // The CSV takes the following format: station,state,latitude,longitude,elevation,date,TMIN,TMAX,TAVG,AWND,WDF5,WSF5,SNOW,SNWD,PRCP
 
@@ -41,7 +44,6 @@ svg.call(zoom);
 
 // Initialize path for map drawing
 const path = d3.geoPath();
-
 
 const projection = d3.geoAlbersUsa()
     .scale(1300)
@@ -92,6 +94,7 @@ async function init() {
                     latitude: curr.latitude,
                     longitude: curr.longitude,
                     elevation: curr.elevation,
+                    state: curr.state,
                     weather: [currWeather]
                 }
 
@@ -104,6 +107,7 @@ async function init() {
             latitude: weather_data[0].latitude,
             longitude: weather_data[0].longitude,
             elevation: weather_data[0].elevation,
+            state: weather_data[0].state,
             weather: []
         };
 
@@ -150,7 +154,21 @@ function createVis(us, data) {
 
 
 function updateVis(weather_data) {
-    p_coords = weather_data.map(d => projection([d.longitude, d.latitude]))
+    function coord_to_plot(datapoint) {
+        let [x, y] = projection([datapoint.longitude, datapoint.latitude]);
+
+        return {
+            station: datapoint.station,
+            state: datapoint.state,
+            long: datapoint.longitude,
+            lat: datapoint.latitude,
+            x: x,
+            y: y,
+            data: get_data(datapoint)
+        }
+    }
+
+    p_coords = weather_data.map(d => coord_to_plot(d))
 
 
     g.selectAll('.points')
@@ -161,15 +179,36 @@ function updateVis(weather_data) {
                     .append('circle')
                     .attr('class', 'points')
                     .attr('r', 0)
-                    .attr('cx', d => d[0])
-                    .attr('cy', d => d[1])
-                    .transition(transition_time)
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y)
                     .attr('r', 2)
-                    .attr('fill', 'red');
+                    .attr('fill', 'red')
+                    .on('mouseover', function (event, d) {
+                        d3.select('#tooltip')
+                            .style('display', 'block')
+                            .html(`<strong>${d.station}</strong><br/>
+                                    ${Math.abs(d.lat)}&deg${(d.lat > 0)? 'N' : 'S'}, ${Math.abs(d.long)}&deg${(d.long > 0)? 'E':'W'}<br/>
+                                    State: ${d.state}<br/>
+                                    `)
+                            .style("left", (event.pageX + 20) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                        
+                        d3.select(this)
+                        .attr('r', 5)
+                        .style('stroke', 'black')
+                        .style('stroke-width', '4px')
+                    })
+                    .on('mouseout', function (event, d) {
+                        d3.select('#tooltip')
+                        .style('display', 'none');
+
+                        d3.select(this)
+                        .attr('r', 2)
+                        .style('stroke-width', '0px');
+                    });
             },
             function (update) {
                 return update
-                    .attr('cx', d => d[0])
             },
             function (exit) {
                 exit
