@@ -22,7 +22,7 @@ function createVis(us, data) {
 
     const zoom = d3.zoom()
         .scaleExtent([1, 8])
-        .translateExtent([[0, 0], [width, height]])
+        //.translateExtent([[0, 0], [width, height]])
         .on("zoom", zoomed);
 
     const svg = d3.select('#vis').append("svg")
