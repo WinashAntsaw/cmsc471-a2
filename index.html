@@ -1,29 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="scroll-behavior: smooth;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Insert Title Here</title>
+    <title>Daily Weather Data in the United States</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container"> <!-- Centers content and sets max width -->
-        <h1>Insert Title Here</h1>
+        <h1>Daily Weather Data in the United States (2017)</h1>
+        <i><h4 style="color: crimson;"> A data visualization developed by Ashwin Sawant, Daniel Fesenko, and Serena Choy</h4></i>
+
+        <br>
+
+        <p>&emsp;&emsp;This data visualization represents 2017 daily weather data in the US sourced from the NOAA Daily Global Historical Climatology Network. The type of weather data collected includes precipitation, temperature, and wind data, at various locations across the US. The map features the different weather stations across the US with data. Start exploring by using the slider to filter stations with a minimum number of observations and the drop down to select which variable of data you’d like to see. Zoom and pan on the map, then click on any point on the map to see its associated plot. Click off of the point to zoom back out. 
+            For more about the visualization see
+            <a href="#writeup" style="color: crimson;">below</a>.
+        </p>
+        
+        <br><hr><br>
 
         <div class="controls">
             <label>Minimum Number of Observations (We recommend a minimum of 25): </label>
-            <label id="value"></label>
+            <b><label id="value"></label></b>
             <div id="slider"></div>
 
-
             <label>What would you like to look at?</label><select id="dataVar" class="variable"></select>
-            
 
         </div>
         
         <div id="vis"></div> <!--  Will hold our visualization (SVG) -->
-        <div id="tooltip" style="display:none"></div>
+        <div id="tooltip" styles="display:none"></div>
         <div id="line-chart"></div>
+
+        <br>
+        <hr><article id="writeup"> <br>
+        
+        <p> &emsp;&emsp;The goal of the visualization is to present trends in the weather data through making it more easily navigated and 
+            filtered. Specifically, we noticed that the dataset includes multiple weather data from the same weather station on different 
+            days, but varying stations tended to have more data points than others. We wanted to provide a way for users to filter out 
+            weather stations by a minimum number of data entries. In this way, we can focus on a subset of weather stations that have more 
+            observations, such that more meaningful weather trends over the course of the year can be plotted and visualized for analysis.
+            <br>
+            &emsp;&emsp;All of the weather data in the dataset are associated with the specific weather station that collected the data, so the 
+            main interface of our visualization plots all of these weather stations on the map geographically. We believe that by having the data 
+            being represented through a map, users can more easily locate the region that they would like to find weather data for, as well as 
+            explore other data points, rather than through other formats like a search bar or table. The map can be panned and zoomed to allow for 
+            easier navigation and exploration of specific weather stations, and hovering over points provides a tooltip indicating the name of the 
+            station, longitude-latitude, and state.
+            <br>
+            &emsp;&emsp;&emsp;&emsp;In our visualization, we implement brushing and linking through click interactions with the map points. Since 
+            there were many metrics in the dataset, we provided a dropdown to allow users to view one subset of the data at a time based on the 
+            measurement type. Users can select which variable they want to view the plot of, including precipitation, average temperature, average 
+            daily wind speed, etc. Then, any weather station point plotted on the map can be clicked on and an associated graph will appear 
+            plotting the chosen variable over time, using the timestamps within the data. By visualizing the data as points over time, users can 
+            determine trends in the data and make meaningful conclusions with the data.
+            <br>
+            &emsp;&emsp;A purely map based approach was considered initially, but this method would not have been able to convey data for locations
+             with multiple points available. Likewise, a purely chart based approach would be less engaging and more difficult to perceive the data 
+             as related to a specific location in the US (i.e. seeing the city name or longitude-latitude is much harder to understand than seeing 
+             a point on a map). Thus, rather than rely on solely a map visualization or graph visualization, this interactive process of clicking 
+             on map points, selecting weather variables, and generating a graph provides an exploratory experience of the data and trends 
+             associated with a specific region, fully controlled and filterable by the user.
+            <br>
+            &emsp;&emsp;The development process was split by three main aspects of the visualization– the map, the plots, and the webpage 
+            hosting the visualizations– with each member of the team leading one of these aspects. The time spent creating the 
+            visualization took approximately 5 hours. Some aspects that took more time to complete included setting up the map of the 
+            visualization and plotting the geographical coordinates associated with each of the weather stations. However, once this was 
+            up and running, we had a clean basis on which we could navigate our data. Some other revisions during the development process 
+            included improving the readability. With the large number of data points, we later included borders on the map points and 
+            auto-zooming when clicking on a point to make it more clear which point is being viewed.
+            </p>
+
     </div>
     
     <!-- Load D3.js -->
