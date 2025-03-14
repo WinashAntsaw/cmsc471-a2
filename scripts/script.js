@@ -4,10 +4,10 @@ const test_coords = [{name: 'Newark', latitude: 39.6837, longitude: -75.7497}, {
 const valid_states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
 
 const data_options = [
-    {name: 'Temperature', fullname: 'Average Temperature Across Observations (F)'},
-    {name: 'Snowfall', fullname: 'Snowfall Across Observations (inches)'},
-    {name: 'Precipitation', fullname: 'Precipitation (inches)'},
-    {name: 'Windspeed', fullname: 'Fastest 5-Second Wind Speed Across Daily Observations (miles/hour)'}
+    {name: 'Temperature', fullname: 'Average Temperature Across Observations (F)', csvname: 'TAVG'},
+    {name: 'Snowfall', fullname: 'Snowfall Across Observations (inches)', csvname: 'SNOW'},
+    {name: 'Precipitation', fullname: 'Precipitation (inches)', csvname: 'PRCP'},
+    {name: 'Windspeed', fullname: 'Fastest 5-Second Wind Speed Across Daily Observations (miles/hour)', csvname: 'WSF5'}
     ];
 
 let num_observations= [], data_var = data_options[0], min_observations = 25;
@@ -91,10 +91,11 @@ async function init() {
                 PRCP: curr.PRCP
             };
 
-            if (accum.station === curr.station) {
+            if (accum.station == curr.station) {
                 accum.weather.push(currWeather);
                 return accum;
             } else {
+                //console.log('Accumulator Weather Length ' + accum.weather.length);
                 station_data.push(accum);
                 let newAccum = {
                     station: curr.station,
@@ -123,13 +124,13 @@ async function init() {
         console.log("Old length: " + weather_data.length);
         console.log("New length: " + station_data.length);
 
-        let num_observations = station_data.map(d => d.weather.length);
-        console.log('Each station has an average of: ' + num_observations.reduce((accum, curr) => accum + curr, 0) / num_observations.length + ' observations');
-        console.log('The highest number of observations was: ' + Math.max(...num_observations));
-        console.log(num_observations);
+        num_observations = station_data.map(d => d.weather.length);
+
 
         // Create visualization with map and weather data
+        
         createVis(us, station_data);
+        setupSelector(station_data);
 
     } catch (error) {
         console.error('Error loading data:', error);
@@ -139,8 +140,9 @@ async function init() {
 
 // Create User Interaction Tools
 function setupSelector(station_data){
+    min_observations = Math.floor(d3.mean(num_observations));
+    
     d3.select("#value").text(min_observations);
-
     let slider = d3
         .sliderHorizontal()
         .min(d3.min(num_observations))
@@ -148,8 +150,9 @@ function setupSelector(station_data){
         .step(1)
         .width(width)
         .displayValue(false)
-        .default(min_observations)
+        .default(d3.mean(num_observations))
         .on('onchange', (val) => {
+            //console.log(val);
             d3.select('#value').text(val);
             min_observations = +val;
             updateVis(station_data);
@@ -170,9 +173,12 @@ function setupSelector(station_data){
         .text(d => d.name)
         .attr('value', d => d.name)
         .on('change', function (event) {
-            
-        })
+            let thisname = d3.select(this).property('value');
+            let option = data_options.find(d => d.name == thisname);
+            data_var = option;
+    });
     
+    d3.select("#dataVar").property('value', data_var.name);
     
     
 }
@@ -273,7 +279,7 @@ function updateVis(weather_data) {
                         allow_zoom = false;
                         event.stopPropagation();
                         // Create line chart using "date" for the x-axis and "TAVG" for the y-axis
-                        createLineChart(d.weather, 'date', 'TAVG');
+                        createLineChart(d.weather, 'date', data_var.csvname);
                     });
             },
             function (update) { return update; },
