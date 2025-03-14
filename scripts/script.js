@@ -14,7 +14,10 @@ let num_observations= [], data_var = data_options[0], min_observations = 25;
 
 
 function get_data(datapoint) {
-    return "Not implemented yet";
+
+    let data = datapoint.weather.filter(d => d[data_var.csvname] != '');
+    data = data.map(d => +d[data_var.csvname])
+    return d3.mean(data);
 }
 
 // The CSV takes the following format: station,state,latitude,longitude,elevation,date,TMIN,TMAX,TAVG,AWND,WDF5,WSF5,SNOW,SNWD,PRCP
@@ -100,7 +103,8 @@ async function init() {
                 TMAX: curr.TMAX,
                 TAVG: curr.TAVG,
                 AWND: curr.AWND,
-                WDF5: curr.WSF5,
+                WDF5: curr.WDF5,
+                WSF5: curr.WSF5,
                 SNOW: curr.SNOW,
                 SNWD: curr.SNWD,
                 PRCP: curr.PRCP
@@ -127,7 +131,9 @@ async function init() {
 
                 return newAccum
             }
-        }        
+        }
+
+
 
         let [x, y] = projection([weather_data[0].longitude, weather_data[0].latitude]);
 
@@ -151,6 +157,9 @@ async function init() {
         num_observations = station_data.map(d => d.weather.length);
 
 
+
+        s = station_data.find(d => d.station == 'Port Graham');
+        console.log('Hello' + s.weather.map(d => d.SNOW));
         // Create visualization with map and weather data
         
         createVis(us, station_data);
@@ -176,6 +185,7 @@ function setupSelector(station_data){
         .default(d3.mean(num_observations))
         .on('onchange', (val) => {
             //console.log(val);
+            
             d3.select('#value').text(val);
             min_observations = +val;
             updateVis(station_data);
@@ -195,13 +205,15 @@ function setupSelector(station_data){
         .append('option')
         .text(d => d.name)
         .attr('value', d => d.name)
+        
+    
+    d3.select("#dataVar").property('value', data_var.name)
         .on('change', function (event) {
             let thisname = d3.select(this).property('value');
             let option = data_options.find(d => d.name == thisname);
             data_var = option;
-    });
-    
-    d3.select("#dataVar").property('value', data_var.name);
+            updateVis(station_data)
+        });
     
     
 }
@@ -250,7 +262,23 @@ function updateVis(weather_data) {
         }
     }
 
-    p_coords = weather_data.filter(d => d.weather.length >= min_observations).map(d => coord_to_plot(d));
+    p_coords = weather_data.filter(d => (d.weather.length >= min_observations));
+    console.log(data_var.csvname)
+    p_coords = p_coords.filter(d => !(d.weather.every(x => x[data_var.csvname] == '')))
+
+    p_coords = p_coords.map(coord_to_plot);
+
+    data  = p_coords.map(d => d.data);
+    min = d3.min(data);
+    max = d3.max(data);
+
+    colorScheme = (data_var.csvname == 'TAVG')? d3.interpolateRdBu : d3.interpolateBlues
+
+    //colorDomain =  (data_var.csvname == 'TAVG')? [max, min] : [min, max];
+    colorDomain = [max, min];
+
+    let color = d3.scaleSequential(colorDomain, colorScheme)
+    
 
 
     g.selectAll('.points')
@@ -264,7 +292,7 @@ function updateVis(weather_data) {
                     .attr('cx', d => d.x)
                     .attr('cy', d => d.y)
                     .attr('r', 4)
-                    .attr('fill', 'red')
+                    .attr('fill', d => color(d.data))
                     .style('stroke', 'black')
                     .style('stroke-width', '1px')
                     .on('mouseover', function (event, d) {
@@ -275,7 +303,8 @@ function updateVis(weather_data) {
                                     State: ${d.state}<br/>
                                     `)
                             .style("left", (event.pageX + 20) + "px")
-                            .style("top", (event.pageY - 28) + "px");
+                            .style("top", (event.pageY - 28) + "px")
+                            .style('background-color', color(d.data));
                         
                         d3.select(this)
                             .attr('r', 7)
@@ -299,7 +328,6 @@ function updateVis(weather_data) {
                             .attr('transform', `scale(${zoom_factor}) translate(${-(d.x - (width / (zoom_factor * 2)))}, ${-(d.y - (height / (zoom_factor * 2)))})`)
 
                         //Change this so that PRCP can be replaced with any value the user chooses from the dropdown
-                        createChart(d.weather, 'date', 'PRCP');
                         
                         /*
                         d3.select('svg')
@@ -310,9 +338,10 @@ function updateVis(weather_data) {
                         
                         // To block normal zooming actions while the station is selected, the line below should be uncommented
                         allow_zoom = false;
-                        event.stopPropagation();
+                        
                         // Create line chart using "date" for the x-axis and "TAVG" for the y-axis
-                        createChart(d.weather, 'date', data_var.csvname);
+                        createChart(d.weather, 'date', data_var);
+                        event.stopPropagation();
                     });
             },
             function (update) {
@@ -320,18 +349,122 @@ function updateVis(weather_data) {
                     .attr('cx', d => d.x)
                     .attr('cy', d => d.y)
                     .attr('r', 4)
+                    .style('fill', d => color(d.data))
+                    .on('mouseover', function (event, d) {
+                        d3.select('#tooltip')
+                            .style('display', 'block')
+                            .html(`<strong>${d.station}</strong><br/>
+                                    ${Math.abs(d.lat)}&deg${(d.lat > 0)? 'N' : 'S'}, ${Math.abs(d.long)}&deg${(d.long > 0)? 'E':'W'}<br/>
+                                    State: ${d.state}<br/>
+                                    `)
+                            .style("left", (event.pageX + 20) + "px")
+                            .style("top", (event.pageY - 28) + "px")
+                            .style('background-color', color(d.data));
+                        
+                        d3.select(this)
+                            .attr('r', 7)
+                            .style('stroke', 'black')
+                            .style('stroke-width', '2px')
+                            .style('cursor', 'pointer');
+                    })
+                    .on('mouseout', function (event, d) {
+                        d3.select('#tooltip')
+                        .style('display', 'none');
+
+                        d3.select(this)
+                        .attr('r', 4)
+                        .style('stroke-width', '1px')
+                        .style('cursor', 'default');
+                    })
+                    .on('click', function (event, d) {
+                        let zoom_factor = max_zoom;
+
+                        g.transition(transition_time)
+                            .attr('transform', `scale(${zoom_factor}) translate(${-(d.x - (width / (zoom_factor * 2)))}, ${-(d.y - (height / (zoom_factor * 2)))})`)
+
+                        //Change this so that PRCP can be replaced with any value the user chooses from the dropdown
+                        
+                        /*
+                        d3.select('svg')
+                            .transition(transition_time)
+                            .call(zoom.scaleTo, zoom_factor)
+                            .transition()
+                            .call(zoom.translateTo, d.x, d.y)*/
+                        
+                        // To block normal zooming actions while the station is selected, the line below should be uncommented
+                        allow_zoom = false;
+                        
+                        // Create line chart using "date" for the x-axis and "TAVG" for the y-axis
+                        createChart(d.weather, 'date', data_var);
+                        event.stopPropagation();
+                    });
             },
             function (exit) {
                 exit
                     .remove();
             }
         )
+
+        addLegend(color, colorDomain[0], colorDomain[1]);
+}
+
+function addLegend(scale, left, right) {
+    const legendHeight = 60;
+    const barHeight = legendHeight / 2;
+    d3.select('#legend').remove();
+
+    const legend_svg = d3.select("#vis").append('svg').attr('id', 'legend')
+        .attr("viewBox", [0, 0, width, legendHeight])
+        .attr("width", width)
+        .attr("height", legendHeight)
+        .attr('margin', 0)
+        .style('border', '0px');
+
+    let defs = legend_svg.append('defs');
+
+    let grad = defs.append('linearGradient').attr('id', 'linear-gradient')
+    
+    if (data_var.csvname == 'TAVG') {
+        grad = grad.attr('x1', '100%').attr('x2', '0%');
+    }
+    
+
+    grad.selectAll('stop')
+        .data(scale.ticks().map((t, i, n) => ({offset: `${100*i/n.length}%`, color: scale(t)})))
+        .enter().append('stop')
+        .attr('offset', d=> d.offset)
+        .attr('stop-color', d => d.color)
+
+    legend_svg.append('g')
+        .attr('transform', `translate(0, 0)`)
+        .append('rect')
+        .attr('width', width)
+        .attr('height', barHeight)
+        .style('fill', 'url(#linear-gradient)')
+    
+    const axisScale = d3.scaleLinear()
+        .domain([left, right])
+        .range([width, 0])
+
+    const xAxis = d3.axisBottom(axisScale)
+    legend_svg.append('g')
+        .attr('class', 'axis')
+        .attr('transform', `translate(0,${legendHeight/2})`)
+        .call(xAxis);
+
+    legend_svg.append('text')
+        .attr('class', 'chart-title')
+        .attr('x', width / 2)
+        .attr('y', legendHeight)
+        .attr('text-anchor', 'middle')
+        .text(data_var.fullname)
 }
 
 // Function to create a scatter plot (points) below the map
-function createChart(weatherData, xVar, yVar) {
+function createChart(weatherData, xVar, option) {
+    yVar = option.csvname;
     // Clear any previous chart
-    d3.select("#line-chart").html("");
+    d3.select("#line-chart").select('svg').remove();
 
     const margin = {top: 20, right: 30, bottom: 50, left: 50},
           chartWidth = 600 - margin.left - margin.right,
@@ -348,12 +481,17 @@ function createChart(weatherData, xVar, yVar) {
     weatherData.forEach(d => {
         d.parsedDate = parseDate(d.date);
         d.yValue = +d[yVar]; // convert the y variable to a number
+        if (Number.isNaN(d.yValue)) {
+            console.log("Can't convert to number: " + d[yVar])
+        }
     });
 
     const xScale = d3.scaleTime()
         .domain(d3.extent(weatherData, d => d.parsedDate))
         .range([0, chartWidth]);
 
+    console.log(weatherData.map(d => d.yValue));
+    
     const yScale = d3.scaleLinear()
         .domain(d3.extent(weatherData, d => d.yValue))
         .nice()
@@ -384,13 +522,21 @@ function createChart(weatherData, xVar, yVar) {
         .style("text-anchor", "middle")
         .text("Date");
 
+    console.log('YVar is '  + yVar);
     svgChart.append("text")
         .attr("transform", "rotate(-90)")
         .attr("y", 0 - margin.left)
         .attr("x", 0 - (chartHeight / 2))
         .attr("dy", "1em")
         .style("text-anchor", "middle")
-        .text(yVar);
+        .text(option.name);
+
+    svgChart.append('text')
+        .attr('class', 'chart-title')
+        .attr('x', chartWidth / 2)
+        .attr('y', margin.top - 20)
+        .attr('text-anchor', 'middle')
+        .text(option.fullname)
 }
 
 window.addEventListener('load', init)
