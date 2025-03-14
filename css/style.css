@@ -4,7 +4,6 @@
     max-width: 800px;
     margin: 0px auto;
     line-height: 1.8;
-    scroll-behavior: smooth;
 }
 
 /* Container styling for layout */
@@ -67,18 +66,4 @@ button:active{
     border-radius: 4px;
     pointer-events: none; /* Prevent tooltip from interfering with mouse events */
     font-size: 12px;
-}
-
-h4 {
-    color: crimson;
-}
-
-
-a {
-    color: crimson;
- 
-}
-    
-a:visited { 
-    color: crimson;
 }
