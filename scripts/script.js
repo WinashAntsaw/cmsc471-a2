@@ -223,7 +223,7 @@ function setupSelector(station_data){
 function createVis(us, data) {    
 
     const states = g.append("g")
-        .attr("fill", "#ddd")
+        .attr("fill", "#888")
         //.attr("cursor", "pointer")
         .selectAll("path")
         .data(topojson.feature(us, us.objects.states).features)
