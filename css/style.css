@@ -16,7 +16,9 @@
 
 /* SVG Canvas styles */
 #vis svg {
-    margin: 2rem 0;
+    margin: 0 0;
+    padding-bottom: 0;
+    padding-top: 0;
     border: 1px solid #ccc;
 }
 
@@ -65,5 +67,7 @@ button:active{
     border: 1px solid #ddd;
     border-radius: 4px;
     pointer-events: none; /* Prevent tooltip from interfering with mouse events */
-    font-size: 12px;
+    font-size: 10px;
+    color: #fff;
+    text-shadow: 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000
 }
