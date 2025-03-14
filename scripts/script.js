@@ -180,7 +180,7 @@ function setupSelector(station_data){
         .min(d3.min(num_observations))
         .max(d3.max(num_observations))
         .step(1)
-        .width(width)
+        .width(width-240)
         .displayValue(false)
         .default(d3.mean(num_observations))
         .on('onchange', (val) => {
@@ -515,7 +515,31 @@ function createChart(weatherData, xVar, option) {
         .attr("cx", d => xScale(d.parsedDate))
         .attr("cy", d => yScale(d.yValue))
         .attr("r", 3)
-        .attr("fill", "steelblue");
+        .attr("fill", "steelblue").on('mouseover', function (event, d) {
+            d3.select('#tooltip')
+                .style('display', 'block')
+                .html(`
+                        ${d.parsedDate}<br/>
+                        ${yVar}: ${d.yValue}<br/>
+                        `)
+                .style("left", (event.pageX + 20) + "px")
+                .style("top", (event.pageY - 28) + "px");
+            
+            d3.select(this)
+                .attr('r', 5)
+                .style('stroke', 'black')
+                .style('stroke-width', '2px')
+                .style('cursor', 'pointer');
+        })
+        .on('mouseout', function (event, d) {
+            d3.select('#tooltip')
+            .style('display', 'none');
+
+            d3.select(this)
+            .attr('r', 3)
+            .style('stroke-width', '0px')
+            .style('cursor', 'default');
+        });
 
     svgChart.append("text")
         .attr("transform", `translate(${chartWidth/2}, ${chartHeight + margin.bottom - 5})`)
